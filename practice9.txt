@@ -1,0 +1,224 @@
+Exercise 17.1.1 (from textbook): 
+Suppose that the consistency constraint on the database is 0 <= A <= B. 
+Tell whether each of the following transactions preserve consistency.
+a) T: A := A+B; B := A+B    (transaction T has two steps) 
+A'=A+B; B'=A'+B=2A+B =>       0 <= A' <= B'(TRUE)
+b) T: B := A+B; A := A+B    (transaction T has two steps)
+B'=A+B; A'=A+B'=2A+B => 0     0 <= B' <= A' (FALSE)     
+c) T: A := B+1; B := A+1    (transaction T has two steps) 
+A'=B+1; B'=A'+1=B+2  =>       0 <= A' <= B' (TRUE)
+--------------------------------------------------------------------------------
+
+Exercise 17.1.2: 
+For each of the transactions of Exercise 17.1.1, add the
+read- and write-actions to the computation and show the effect of the steps on
+main memory and disk. Assume that initially A = 5 and B = 10.
+
+a) T: A := A + B; B := A + B;
+
+Action	        t       u	M-A	M-B	D-A	D-B		
+READ(A,t)	5       -         5     -        5       10
+READ(B,u)       5       10        5      10      5       10
+t := t + u	15      10        5      10      5       10
+WRITE(A,t) 	15      10       15      10      5       10                          	
+u := t + u	15      25       15      10      5       10
+WRITE(B,u)	15      25       15      25      5       10							 
+OUTPUT(A)	15      25       15      25      15      10		
+OUTPUT(B)	15      25       15      25      25      25	
+		
+
+b) T: B := A+B; A := A+B
+
+Action	        t       u	M-A	M-B	D-A	D-B				
+READ(A,t)	5       -         5     -        5       10
+READ(B,u)       5       10        5      10      5       10
+u := u + t	5       15        5      10      5       10
+WRITE(A,t) 	5       15        5      15      5       10                          	
+t := t + u	20      15        5      15      5       10
+WRITE(B,u)	20      15       20      15      5       10							 
+OUTPUT(A)	20      15       20      15      20      10		
+OUTPUT(B)	20      15       20      15      20      15	
+
+c) T: A := B+1; B := A+1
+	
+Action	        t       u	M-A	M-B	D-A	D-B	
+READ(A,t)	5       -         5     -        5       10
+READ(B,u)       5       10        5      10      5       10
+t := u + 1      11      10        5      10      5       10
+WRITE(A,t)      11      10       11      10      5       10 
+u := t + 1	11      12       11      10      5       10
+WRITE(B,u)	11      12       11      12      5       10
+OUTPUT(A)	11      12       11      12      11      10	
+OUTPUT(B)	11      12       11      12      11      12		
+
+Exercise 17.2.1: 
+Show the UNDO-LOG records for each of the transactions (call each T) 
+of Exercise 17.1.1, assuming that initially A = 5 and B = 10.
+
+a) <T, START>
+   <T, A, 5>
+   <T, B, 10>
+   <T, COMMIT>
+
+b) <T, START>
+   <T, B, 10>
+   <T, A, 5>   
+   <T, COMMIT>
+
+c) <T, START>
+   <T, A, 5>
+   <T, B, 10>
+   <T, COMMIT>
+
+
+RULES FOR UNDO LOGGING(LATEST TO EARLIEST)
+(1) Let S = set of transactions with			
+                <Ti, start> in log, but no
+		<Ti, commit> (or <Ti, abort>) record in log
+(2) For each <Ti, X, v> in log,
+	  in reverse order (latest  earliest) do:
+		- if Ti  S then    
+                   - write (X, v)
+	           - output (X)
+(3) For each Ti  S do
+		- write <Ti, abort> to log (plus FLUSH LOG)
+
+
+Exercise 17.2.4: 
+The following is a sequence of undo-log records written by two transactions T and U: 
+<start T> 
+<T, A, 10> 
+<start U> 
+<U, B, 20> 
+<T, C, 30> 
+<U, D, 40>
+<T, A, 11>
+<U, B, 21>  
+<COMMIT U>
+<T, E, 50> 
+<COMMIT T>
+Describe the action of the recovery manager, including changes to both disk and the log,
+if there is a crash and the last log record to appear on disk is:
+(a) <START U> 
+    -> <U, ABORT>, FLUSH LOG, WRITE(A, 10), OUTPUT(A), <T, ABORT>, FLUSH LOG
+(b) <C0MMIT U> 
+    ->WRITE(A, 11), OUTPUT(A), WRITE(C, 30), OUTPUT(C), WRITE(A, 10), OUTPUT(A), <T, ABORT>, FLUSH LOG
+(c) <T, E, 50> 
+    ->WRITE(E, 50), OUTPUT(E), WRITE(A, 11), OUTPUT(A), WRITE(C, 30), OUTPUT(C), WRITE(A, 10), OUTPUT(A), <T, ABORT>, FLUSH LOG
+(d) <C0MMIT T>
+    -> NOTHING TO DO
+
+Exercise 17.3.1: 
+Show the REDO-LOG records for each of the transactions (call each T) 
+of Exercise 17.1.1, assuming that initially A = 5 and B = 10.
+a) <T, START>
+   <T, A, 5, 15>
+   <T, B, 10, 25>
+   <T, COMMIT>
+
+b) <T, START>
+   <T, B, 10, 15>
+   <T, A, 5, 20>   
+   <T, COMMIT>
+
+c) <T, START>
+   <T, A, 5, 11>
+   <T, B, 10, 12>
+   <T, COMMIT>
+
+RULES FOR REDO LOGGING
+(1) Let S = set of transactions with<Ti, commit> (and no <Ti, end>) in log
+(2) For each <Ti, X, v> in log, in forward
+	   order (earliest  latest) do:
+		- if Ti  S then  
+                      Write(X, v)
+		      Output(X)
+(3) For each Ti  S, write <Ti, end> 
+		to Log (plus FLUSH LOG)
+
+
+
+Exercise 17.3.3: 
+Repeat Exercise 17.2.4 for REDO logging.
+<start T>
+<T, A, 10> 
+<start U> 
+<U, B, 20> 
+<T, C, 30> 
+<U, D, 40>
+<T, A, 11>
+<U, B, 21>  
+<COMMIT U>
+<T, E, 50> 
+<COMMIT T>
+<END, U>
+<END, T>
+Describe the action of the recovery manager, including changes to both disk and the log,
+if there is a crash and the last log record to appear on disk is:
+(a) <START U>   
+    -> NOTHING TO DO :)
+(b) <C0MMIT U>  
+    -> WRITE(B, 20), OUTPUT(B), WRITE(D, 40), OUTPUT(D), WRITE(B, 21), OUTPUT(B), <U, END>, FLUSH LOG
+(c) <T, E, 50> 
+    -> WRITE(B, 20), OUTPUT(B), WRITE(D, 40), OUTPUT(D), WRITE(B, 21), OUTPUT(B), <U, END>, FLUSH LOG
+(d) <C0MMIT T>  
+    -> WRITE(A, 10), OUTPUT(A), WRITE(C, 30), OUTPUT(C), WRITE(A, 11), OUTPUT(A), WRITE(E, 50), OUTPUT(E), <T, END>, FLUSH LOG,
+       WRITE(B, 20), OUTPUT(B), WRITE(D, 40), OUTPUT(D), WRITE(B, 21), OUTPUT(B), <U, END>, FLUSH LOG
+(e) <END, U> 
+    -> WRITE(A, 10), OUTPUT(A), WRITE(C, 30), OUTPUT(C), WRITE(A, 11), OUTPUT(A), WRITE(E, 50), OUTPUT(E), <T, END>, FLUSH LOG
+
+Exercise 17.4.1: 
+Show the undo/redo-log records for each of the transactions (call each T) 
+of Exercise 17.1.1, assuming that initially A = 5 and B = 10.
+a) <T, START>
+   <T, A, 15>
+   <T, B, 25>
+   <T, COMMIT>
+
+b) <T, START>
+   <T, B, 15>
+   <T, A, 20>   
+   <T, COMMIT>
+
+c) <T, START>
+   <T, A, 11>
+   <T, B, 12>
+   <T, COMMIT>
+
+
+The undo/redo recovery policy is:
+1. Redo all the committed transactions in the order earliest-first, and
+2. Undo all the incomplete transactions in the order latest-first.
+
+Exercise 17.4.3: 
+The following is a sequence of undo/redo-log records written by two transactions T and U: 
+<START T>; 
+<T, A, 10, 11>; 
+<START U>;
+<U, B, 20, 21 >; 
+<T, C, 30, 31>; 
+<U, D, 40, 41>; 
+<C0MMIT U>; 
+<T, E, 50, 51>;
+
+<C0MMIT T>.
+Describe the action of the recovery manager, including changes to both disk and the log, 
+if there is a crash and the last log record to appear on disk is:
+(a) <START U> 
+    -> <ABORT, U>, FLUSH LOG, WRITE(A, 10), OUTPUT(A), <ABORT, T>, FLUSH LOG
+(b) <C0MMIT U> 
+    -> 1)REDO(FROM EARLIEST TO LATEST)
+       WRITE(B, 21), OUTPUT(B), WRITE(D, 41), OUTPUT(D), <END, U>, FLUSH LOG  //T IS NOT COMMITED
+       2)UNDO(FROM LATEST TO EARLIEST)
+       WRITE(C, 30), OUTPUT(C), WRITE(A, 10), OUTPUT(A), <ABORT, T>, FLUSH LOG  //STARTED BUT NOT COMMITED      
+(c) <T, E, 50, 51> 
+       -> 1)REDO(FROM EARLIEST TO LATEST)
+       WRITE(B, 21), OUTPUT(B), WRITE(D, 41), OUTPUT(D), <END, U>, FLUSH LOG  //T IS NOT COMMITED
+       2)UNDO(FROM LATEST TO EARLIEST)
+       WRITE(E, 50), OUTPUT(E), WRITE(C, 30), OUTPUT(C), WRITE(A, 10), OUTPUT(A), <ABORT, T>, FLUSH LOG
+(d) <C0MMIT T >.
+    -> 1)REDO(FROM EARLIEST TO LATEST)
+       WRITE(A, 11), OUTPUT(A), WRITE(C, 31), OUTPUT(C), WRITE(E, 51), OUTPUT(E), <END, T>, FLUSH LOG
+       WRITE(B, 21), OUTPUT(B), WRITE(D, 41), OUTPUT(D), <U, END>, FLUSH LOG
+       2)UNDO(FROM LATEST TO EARLIEST)
+       -NOTHING TO DO, BOTH OF THEM STARTED AND COMMITED
